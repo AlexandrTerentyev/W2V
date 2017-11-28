@@ -31,8 +31,6 @@ def preparedWordArray(sentence):
     res = res.lower()
     res = res.replace('.', ' ')
     res = res.replace(',', ' ')
-    res = res.replace('and', ' ')
-    res = res.replace('or', ' ')
     res = res.split()
     return res
 
