@@ -25,26 +25,58 @@ def allTuplesFromSentences(sentences):
     for sentence in sentences:
         tuples += allTuplesFromSentence(sentence)
         i += 1
-        print('    ', i, 'of', count, ' sentences processed. ', (i/count * 100), '%')
+        print('   ', i, 'of', count, ' sentences processed. ', (i/count * 100), '%')
     return tuples
 
 def allTuplesFromSentence(sentence):
     preparedSentence = hp.preparedWordArray(sentence)
     sentenceSize = len(preparedSentence)
     tuples = []
+    count = len(preparedSentence)
     for i, centralWord in enumerate(preparedSentence):
+        print('      ', i, 'of', count, ' words processed. ', (i / count * 100), '%')
         for j in range(max(0, i - WindowSize), i):
             tuples.append((centralWord, preparedSentence[j]))
         for j in range(i + 1, min(sentenceSize, i + WindowSize)):
             tuples.append((centralWord, preparedSentence[j]))
     return tuples
 
+def xAndYTrainsFromSentence(sentence):
+    preparedSentence = hp.preparedWordArray(sentence)
+    sentenceSize = len(preparedSentence)
+    xTrain = []
+    yTrain = []
+    count = len(preparedSentence)
+    for i, centralWord in enumerate(preparedSentence):
+        print('      ', i, 'of', count, ' words processed. ', (i / count * 100), '%')
+        for j in range(max(0, i - WindowSize), i):
+            addWordsToXandYTrains(centralWord, preparedSentence[j], xTrain, yTrain)
+        for j in range(i + 1, min(sentenceSize, i + WindowSize)):
+            addWordsToXandYTrains(centralWord, preparedSentence[j], xTrain, yTrain)
+    return xTrain, yTrain
+
+def addWordsToXandYTrains(x, y, xTrain, yTrain):
+    try:
+        xTrain.append(indexesByWords[x])
+        yTrain.append(indexesByWords[y])
+    except:
+        print('          Word', x, 'or', y, 'is not in vocabulary')
+
+
+
 def trainsFromTuples(tuples):
     xTrain = []
     yTrain = []
+    i=0
+    count = len(tuples)
     for wordTuple in tuples:
-        xTrain.append(oneHotEncoding(indexesByWords[wordTuple[0]], vocabularySize))
-        yTrain.append(oneHotEncoding(indexesByWords[wordTuple[1]], vocabularySize))
+        try:
+            xTrain.append(oneHotEncoding(indexesByWords[wordTuple[0]], vocabularySize))
+            yTrain.append(oneHotEncoding(indexesByWords[wordTuple[1]], vocabularySize))
+        except Exception:
+            print('          Word',[wordTuple[0]], 'or', wordTuple[1], 'is not in vocabulary' )
+        print('      ', i, 'of', count, ' tuples processed to X and Y train. ', (i / count * 100), '%')
+        i+=1
     return np.asarray(xTrain), np.asarray(yTrain)
 
 def createTFModel():
@@ -102,9 +134,9 @@ def loadVocabulary (filePath):
     wordsByIndex = vocabulary [df.WordsByIndexesKey]
     indexesByWords = vocabulary [df.IndexesByWordsKey]
 
-def learnOnListOfTexts(textList):
+def learnOnText(text):
     print('------------ Gonna parse text list to tuples...')
-    tuples = allTuplesFromSentences(textList)
+    tuples = allTuplesFromSentence(text)
     print('------------ Tuple list filled. Size: ', len(tuples))
     xTrain, yTrain = trainsFromTuples(tuples)
     print('------------ X and Y trains prepared. Gonna start study...')
@@ -126,8 +158,23 @@ def start():
     loadVocabulary('vocabulary.json')
     print('------------ Read all emails file...')
     text = readAllEmailsFile()
-    learnOnListOfTexts(text)
+    learnOnText(text)
     # learnOnListOfTexts(['test text first', 'test text second'])
+
+def proccessTextAndSaveTuples():
+    print('------------ Load vocabulary...')
+    loadVocabulary('vocabulary.json')
+    print('------------ Read all emails file...')
+    text = readAllEmailsFile()
+    print('------------ Gonna parse text to trains...')
+    xTrain, yTrain = xAndYTrainsFromSentence(text)
+    jsonMap = {
+        'xIndeces': xTrain,
+        'yIndeces': yTrain,
+        'size': len(xTrain)
+    }
+    json.dump(jsonMap, codecs.open('trains.json', 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=0)
+
 
 def readAllEmailsFile():
     f = open('allEmails.txt', 'r')
@@ -143,4 +190,4 @@ def saveConcatenatedEmails():
     f.write(text)
     f.close()
 
-start()
+proccessTextAndSaveTuples()
