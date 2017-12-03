@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import json, codecs
+import HelpFunctions as hp
 
 WindowSize = 2
 EmbeddingVectorSize = 5
@@ -8,39 +9,18 @@ Iterations = 1000
 LearningRate = 0.1
 wordsByIndex = {}
 indexesByWords = {}
-
-def vocabularySize():
-    return len(wordsByIndex)
-
-def addWordToVocabulariesIfNeed(word):
-    if word in indexesByWords.keys():
-        return
-    currentVocabularySize = vocabularySize()
-    wordsByIndex[currentVocabularySize] = word
-    indexesByWords [word] = currentVocabularySize
+vocabularySize = 0
 
 def oneHotEncoding(unitIndex, wordCount):
     res = np.zeros(wordCount)
     res[unitIndex] = 1
     return res
 
-def prepareWord(word):
-    return word.lower()
-
-def preparedWordArray(sentence):
-    res = sentence
-    res = res.lower()
-    res = res.replace('.', ' ')
-    res = res.replace(',', ' ')
-    res = res.split()
-    return res
-
 def allTuplesFromSentence(sentence):
-    preparedSentence = preparedWordArray(sentence)
+    preparedSentence = hp.preparedWordArray(sentence)
     sentenceSize = len(preparedSentence)
     tuples = []
     for i, centralWord in enumerate(preparedSentence):
-        addWordToVocabulariesIfNeed(centralWord)
         for j in range(max(0, i - WindowSize), i):
             tuples.append((centralWord, preparedSentence[j]))
         for j in range(i + 1, min(sentenceSize, i + WindowSize)):
@@ -51,18 +31,18 @@ def trainsFromTuple(tuples):
     xTrain = []
     yTrain = []
     for wordTuple in tuples:
-        xTrain.append(oneHotEncoding(indexesByWords[wordTuple[0]], vocabularySize()))
-        yTrain.append(oneHotEncoding(indexesByWords[wordTuple[1]], vocabularySize()))
+        xTrain.append(oneHotEncoding(indexesByWords[wordTuple[0]], vocabularySize))
+        yTrain.append(oneHotEncoding(indexesByWords[wordTuple[1]], vocabularySize))
     return np.asarray(xTrain), np.asarray(yTrain)
 
 def createTFModel():
-    xTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize()))
-    yTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize()))
-    Weigths1 = tf.Variable(tf.random_normal([vocabularySize(), EmbeddingVectorSize]))
+    xTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize))
+    yTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize))
+    Weigths1 = tf.Variable(tf.random_normal([vocabularySize, EmbeddingVectorSize]))
     bias1 = tf.Variable(tf.random_normal([EmbeddingVectorSize]))
-    Weigths2 = tf.Variable(tf.random_normal([EmbeddingVectorSize, vocabularySize()]))
+    Weigths2 = tf.Variable(tf.random_normal([EmbeddingVectorSize, vocabularySize]))
     hiddenRepresentation = tf.add(tf.matmul(xTrainPlaceholder, Weigths1), bias1)
-    bias2 = tf.Variable(tf.random_normal([vocabularySize()]))
+    bias2 = tf.Variable(tf.random_normal([vocabularySize]))
     prediction = tf.nn.softmax(tf.add(tf.matmul(hiddenRepresentation, Weigths2), bias2))
     return xTrainPlaceholder, yTrainPlaceholder, Weigths1, bias1, prediction, Weigths2, bias2
 
@@ -112,7 +92,7 @@ def test():
     xTrain, yTrain = trainsFromTuple(allTuplesFromSentence(testText))
     session, Weigths1, bias1, Weigths2, bias2 = learnAndSaveResult(xTrain, yTrain, 'result.json')
     vectors = session.run(Weigths1 + bias1)
-    print(vectors[indexesByWords[prepareWord('Word2vec')]])
-    print(vectors[indexesByWords[prepareWord('models')]])
+    print(vectors[indexesByWords[hp.prepareWord('Word2vec')]])
+    print(vectors[indexesByWords[hp.prepareWord('models')]])
 
 test()
