@@ -2,6 +2,8 @@ import numpy as np
 import tensorflow as tf
 import json, codecs
 import HelpFunctions as hp
+import DictionaryFiller as df
+import FileReader as fr
 
 WindowSize = 2
 EmbeddingVectorSize = 5
@@ -16,6 +18,16 @@ def oneHotEncoding(unitIndex, wordCount):
     res[unitIndex] = 1
     return res
 
+def allTuplesFromSentences(sentences):
+    tuples = []
+    i = 0
+    count = len(sentences)
+    for sentence in sentences:
+        tuples += allTuplesFromSentence(sentence)
+        i += 1
+        print('    ', i, 'of', count, ' sentences processed. ', (i/count * 100), '%')
+    return tuples
+
 def allTuplesFromSentence(sentence):
     preparedSentence = hp.preparedWordArray(sentence)
     sentenceSize = len(preparedSentence)
@@ -27,7 +39,7 @@ def allTuplesFromSentence(sentence):
             tuples.append((centralWord, preparedSentence[j]))
     return tuples
 
-def trainsFromTuple(tuples):
+def trainsFromTuples(tuples):
     xTrain = []
     yTrain = []
     for wordTuple in tuples:
@@ -63,13 +75,9 @@ def learn(xTrain, yTrain):
     lossFunction, trainStep = createLossFunction(yTrainPlaceholder, prediction)
     feedDictionary = {xTrainPlaceholder: xTrain, yTrainPlaceholder: yTrain}
     for i in  range (Iterations):
+        print('Start [ ', i, ' ] iteration.')
         session.run(trainStep, feed_dict=feedDictionary)
-        print("[", i, "] loss: ", session.run(lossFunction, feed_dict=feedDictionary))
-    return session, Weigths1, bias1, Weigths2, bias2
-
-def learnAndSaveResult(xTrain, yTrain, fileName):
-    session, Weigths1, bias1, Weigths2, bias2 = learn(xTrain, yTrain)
-    saveResult(fileName, session, Weigths1, bias1)
+        print("Iteration [", i, "] loss: ", session.run(lossFunction, feed_dict=feedDictionary))
     return session, Weigths1, bias1, Weigths2, bias2
 
 def saveResult(fileName, session, Weigths1, bias1):
@@ -86,13 +94,53 @@ def saveResult(fileName, session, Weigths1, bias1):
     # with open(fileName, 'w') as outfile:
     #     js.dump(jsonMap, outfile)
 
+def loadVocabulary (filePath):
+    global vocabularySize, wordsByIndex, indexesByWords
+    jsonFile = open(filePath, 'r')
+    vocabulary = json.load(jsonFile)
+    vocabularySize = vocabulary [df.VocabularySizeKey]
+    wordsByIndex = vocabulary [df.WordsByIndexesKey]
+    indexesByWords = vocabulary [df.IndexesByWordsKey]
 
-def test():
-    testText = 'Word2vec is a group of related models that are used to produce word embeddings. These models are shallow, two-layer neural networks that are trained to reconstruct linguistic contexts of words. Word2vec takes as its input a large corpus of text and produces a vector space, typically of several hundred dimensions, with each unique word in the corpus being assigned a corresponding vector in the space. Word vectors are positioned in the vector space such that words that share common contexts in the corpus are located in close proximity to one another in the space.[1]\n\nWord2vec was created by a team of researchers led by Tomas Mikolov at Google. The algorithm has been subsequently analysed and explained by other researchers.[2][3] Embedding vectors created using the Word2vec algorithm have many advantages compared to earlier algorithms[1] such as latent semantic analysis.'
-    xTrain, yTrain = trainsFromTuple(allTuplesFromSentence(testText))
-    session, Weigths1, bias1, Weigths2, bias2 = learnAndSaveResult(xTrain, yTrain, 'result.json')
-    vectors = session.run(Weigths1 + bias1)
-    print(vectors[indexesByWords[hp.prepareWord('Word2vec')]])
-    print(vectors[indexesByWords[hp.prepareWord('models')]])
+def learnOnListOfTexts(textList):
+    print('------------ Gonna parse text list to tuples...')
+    tuples = allTuplesFromSentences(textList)
+    print('------------ Tuple list filled. Size: ', len(tuples))
+    xTrain, yTrain = trainsFromTuples(tuples)
+    print('------------ X and Y trains prepared. Gonna start study...')
+    session, Weigths1, bias1, Weigths2, bias2 = learn(xTrain, yTrain)
+    print('------------ Study completed. Gonna save result...')
+    saveResult('result.json', session, Weigths1, bias1)
+    # print(vectors[indexesByWords[hp.prepareWord('Word2vec')]])
+    # print(vectors[indexesByWords[hp.prepareWord('models')]])
 
-test()
+def concatenateAllEmails():
+    emails = []
+    def onReadEmail(emailText):
+        emails.append(emailText)
+    fr.enumerateDataSet(onReadEmail)
+    return emails
+
+def start():
+    print('------------ Load vocabulary...')
+    loadVocabulary('vocabulary.json')
+    print('------------ Read all emails file...')
+    text = readAllEmailsFile()
+    learnOnListOfTexts(text)
+    # learnOnListOfTexts(['test text first', 'test text second'])
+
+def readAllEmailsFile():
+    f = open('allEmails.txt', 'r')
+    text = f.read()
+    f.close()
+    return text
+
+def saveConcatenatedEmails():
+    text = ''
+    for email in concatenateAllEmails():
+        text += email
+    f = open('allEmails.txt', 'w')
+    f.write(text)
+    f.close()
+
+start()

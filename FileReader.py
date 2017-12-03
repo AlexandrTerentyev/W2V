@@ -1,7 +1,7 @@
 import os
 
 totalCount = 0
-totalEmailCount = 27716
+totalEmailCount = 55431
 
 def enumerateMessagesDirectory(directoryPath, onReadAction):
     global totalCount
@@ -36,5 +36,3 @@ def onRead(text):
 def test():
     enumerateDataSet(onRead)
     print("Total count: ", totalEmailCount)
-
-test()

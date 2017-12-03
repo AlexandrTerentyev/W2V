@@ -4,6 +4,9 @@ import json, codecs
 
 wordsByIndex = {}
 indexesByWords = {}
+WordsByIndexesKey = 'wordsByIndexes'
+VocabularySizeKey = 'vocabularySize'
+IndexesByWordsKey = 'indexesByWords'
 
 def vocabularySize():
     return len(wordsByIndex)
@@ -29,9 +32,9 @@ def proccessSentence(sentence):
 
 def save(filePath):
     jsonMap = {
-        'vocabularySize': vocabularySize(),
-        'wordsByIndexes': wordsByIndex,
-        'indexesByWords': indexesByWords
+        VocabularySizeKey: vocabularySize(),
+        WordsByIndexesKey: wordsByIndex,
+        IndexesByWordsKey: indexesByWords
     }
     json.dump(jsonMap, codecs.open(filePath, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=4)
 
@@ -39,4 +42,4 @@ def fillAndSave(filePath):
     fr.enumerateDataSet(proccessSentence)
     save(filePath)
 
-fillAndSave('vocabulary.json')
+# fillAndSave('vocabulary.json')
