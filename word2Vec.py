@@ -95,10 +95,10 @@ def learnOnTrains(xTrain, yTrain):
     return session, Weigths1, bias1, Weigths2, bias2
 
 def studyIteration(session, trainStep, lossFunction, xIndeces, yIndeces, xTrainPlaceholder, yTrainPlaceholder):
-    trainSize = len(xIndeces)
+    trainSize = len(xIndeces) / 9
     index = 0
     # session.partial_run_setup([trainStep, lossFunction])
-    while index < trainSize/100000:
+    while index < trainSize:
         batchX = xIndeces [index: min(index+StudyTrainPartSize, trainSize)]
         batchY = yIndeces [index: min(index+StudyTrainPartSize, trainSize)]
         xTrain = [oneHotEncoding(x, vocabularySize) for x in batchX]
