@@ -98,7 +98,7 @@ def studyIteration(session, trainStep, lossFunction, xIndeces, yIndeces, xTrainP
     trainSize = len(xIndeces)
     index = 0
     # session.partial_run_setup([trainStep, lossFunction])
-    while index < trainSize:
+    while index < trainSize/100000:
         batchX = xIndeces [index: min(index+StudyTrainPartSize, trainSize)]
         batchY = yIndeces [index: min(index+StudyTrainPartSize, trainSize)]
         xTrain = [oneHotEncoding(x, vocabularySize) for x in batchX]
@@ -114,11 +114,16 @@ def studyIteration(session, trainStep, lossFunction, xIndeces, yIndeces, xTrainP
 def saveResult(fileName, session, Weigths1, bias1):
     vectors = session.run(Weigths1 + bias1)
     vocabulary = {}
-    for i in range (vocabularySize()):
-        vocabulary [wordsByIndex[i]] = vectors[i].tolist()
+    for i in range (vocabularySize):
+        word = wordsByIndex[str(i)]
+        try:
+            vocabulary[word] = vectors[i].tolist()
+        except Exception:
+            print('!!! Error while save result. No vector for word', word)
+
     jsonMap = {
         'vocabulary': vocabulary,
-        'vocabularySize': vocabularySize(),
+        'vocabularySize': vocabularySize,
         'vectorSize': EmbeddingVectorSize
     }
     json.dump(jsonMap, codecs.open(fileName, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=4)
