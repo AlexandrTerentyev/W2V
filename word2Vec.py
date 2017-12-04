@@ -12,7 +12,7 @@ LearningRate = 0.1
 wordsByIndex = {}
 indexesByWords = {}
 vocabularySize = 0
-StudyTrainPartSize = 100
+StudyTrainPartSize = 1000
 
 def oneHotEncoding(unitIndex, wordCount):
     res = np.zeros(wordCount, dtype= np.uint64)
@@ -94,13 +94,13 @@ def learnOnTrains(xTrain, yTrain):
         studyIteration(session, trainStep, lossFunction, xTrain, yTrain, xTrainPlaceholder, yTrainPlaceholder)
     return session, Weigths1, bias1, Weigths2, bias2
 
-def studyIteration(session, trainStep, lossFunction, xTrain, yTrain, xTrainPlaceholder, yTrainPlaceholder):
-    trainSize = len(xTrain)
+def studyIteration(session, trainStep, lossFunction, xIndeces, yIndeces, xTrainPlaceholder, yTrainPlaceholder):
+    trainSize = len(xIndeces)
     index = 0
     # session.partial_run_setup([trainStep, lossFunction])
     while index < trainSize:
-        batchX = xTrain [index: min(index+StudyTrainPartSize, trainSize)]
-        batchY = yTrain [index: min(index+StudyTrainPartSize, trainSize)]
+        batchX = xIndeces [index: min(index+StudyTrainPartSize, trainSize)]
+        batchY = yIndeces [index: min(index+StudyTrainPartSize, trainSize)]
         xTrain = [oneHotEncoding(x, vocabularySize) for x in batchX]
         yTrain = [oneHotEncoding(y, vocabularySize) for y in batchY]
         feedDictionary = {xTrainPlaceholder: xTrain, yTrainPlaceholder: yTrain}
