@@ -12,7 +12,7 @@ LearningRate = 0.1
 wordsByIndex = {}
 indexesByWords = {}
 vocabularySize = 0
-StudyTrainPartSize = 1000
+StudyTrainPartSize = 10000
 
 def oneHotEncoding(unitIndex, wordCount):
     res = np.zeros(wordCount, dtype= np.uint64)
