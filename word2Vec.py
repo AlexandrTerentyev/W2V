@@ -7,12 +7,12 @@ import FileReader as fr
 
 WindowSize = 2
 EmbeddingVectorSize = 5
-Iterations = 10
+Iterations = 1
 LearningRate = 0.1
 wordsByIndex = {}
 indexesByWords = {}
 vocabularySize = 0
-StudyTrainPartSize = 1000
+StudyTrainPartSize = 100
 
 def oneHotEncoding(unitIndex, wordCount):
     res = np.zeros(wordCount, dtype= np.uint64)
@@ -104,8 +104,9 @@ def studyIteration(session, trainStep, lossFunction, xTrain, yTrain, xTrainPlace
         xTrain = [oneHotEncoding(x, vocabularySize) for x in batchX]
         yTrain = [oneHotEncoding(y, vocabularySize) for y in batchY]
         feedDictionary = {xTrainPlaceholder: xTrain, yTrainPlaceholder: yTrain}
-        print('               study proccess', index / trainSize * 100, '%')
+        print('               study proccess', index / trainSize * 100, '%  Current pair part start index:', index, 'of', trainSize)
         session.run(trainStep, feed_dict=feedDictionary)
+        index += StudyTrainPartSize
         # print("           loss: ", session.run(lossFunction, feed_dict=feedDictionary))
 
 
