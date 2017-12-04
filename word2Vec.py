@@ -7,14 +7,15 @@ import FileReader as fr
 
 WindowSize = 2
 EmbeddingVectorSize = 5
-Iterations = 1000
+Iterations = 10
 LearningRate = 0.1
 wordsByIndex = {}
 indexesByWords = {}
 vocabularySize = 0
+StudyTrainPartSize = 1000
 
 def oneHotEncoding(unitIndex, wordCount):
-    res = np.zeros(wordCount)
+    res = np.zeros(wordCount, dtype= np.uint64)
     res[unitIndex] = 1
     return res
 
@@ -62,29 +63,12 @@ def addWordsToXandYTrains(x, y, xTrain, yTrain):
     except:
         print('          Word', x, 'or', y, 'is not in vocabulary')
 
-
-
-def trainsFromTuples(tuples):
-    xTrain = []
-    yTrain = []
-    i=0
-    count = len(tuples)
-    for wordTuple in tuples:
-        try:
-            xTrain.append(oneHotEncoding(indexesByWords[wordTuple[0]], vocabularySize))
-            yTrain.append(oneHotEncoding(indexesByWords[wordTuple[1]], vocabularySize))
-        except Exception:
-            print('          Word',[wordTuple[0]], 'or', wordTuple[1], 'is not in vocabulary' )
-        print('      ', i, 'of', count, ' tuples processed to X and Y train. ', (i / count * 100), '%')
-        i+=1
-    return np.asarray(xTrain), np.asarray(yTrain)
-
 def createTFModel():
-    xTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize))
-    yTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize))
     Weigths1 = tf.Variable(tf.random_normal([vocabularySize, EmbeddingVectorSize]))
     bias1 = tf.Variable(tf.random_normal([EmbeddingVectorSize]))
     Weigths2 = tf.Variable(tf.random_normal([EmbeddingVectorSize, vocabularySize]))
+    xTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize))
+    yTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize))
     hiddenRepresentation = tf.add(tf.matmul(xTrainPlaceholder, Weigths1), bias1)
     bias2 = tf.Variable(tf.random_normal([vocabularySize]))
     prediction = tf.nn.softmax(tf.add(tf.matmul(hiddenRepresentation, Weigths2), bias2))
@@ -101,16 +85,30 @@ def createLossFunction(yPlaceHolder, prediction):
     trainStep = tf.train.GradientDescentOptimizer(LearningRate).minimize(lossFunction)
     return lossFunction, trainStep
 
-def learn(xTrain, yTrain):
+def learnOnTrains(xTrain, yTrain):
     xTrainPlaceholder, yTrainPlaceholder, Weigths1, bias1, prediction, Weigths2, bias2 = createTFModel()
     session = createSession()
     lossFunction, trainStep = createLossFunction(yTrainPlaceholder, prediction)
-    feedDictionary = {xTrainPlaceholder: xTrain, yTrainPlaceholder: yTrain}
     for i in  range (Iterations):
-        print('Start [ ', i, ' ] iteration.')
-        session.run(trainStep, feed_dict=feedDictionary)
-        print("Iteration [", i, "] loss: ", session.run(lossFunction, feed_dict=feedDictionary))
+        print('------- Start [ ', i, ' ] iteration.')
+        studyIteration(session, trainStep, lossFunction, xTrain, yTrain, xTrainPlaceholder, yTrainPlaceholder)
     return session, Weigths1, bias1, Weigths2, bias2
+
+def studyIteration(session, trainStep, lossFunction, xTrain, yTrain, xTrainPlaceholder, yTrainPlaceholder):
+    trainSize = len(xTrain)
+    index = 0
+    # session.partial_run_setup([trainStep, lossFunction])
+    while index < trainSize:
+        batchX = xTrain [index: min(index+StudyTrainPartSize, trainSize)]
+        batchY = yTrain [index: min(index+StudyTrainPartSize, trainSize)]
+        xTrain = [oneHotEncoding(x, vocabularySize) for x in batchX]
+        yTrain = [oneHotEncoding(y, vocabularySize) for y in batchY]
+        feedDictionary = {xTrainPlaceholder: xTrain, yTrainPlaceholder: yTrain}
+        print('               study proccess', index / trainSize * 100, '%')
+        session.run(trainStep, feed_dict=feedDictionary)
+        # print("           loss: ", session.run(lossFunction, feed_dict=feedDictionary))
+
+
 
 def saveResult(fileName, session, Weigths1, bias1):
     vectors = session.run(Weigths1 + bias1)
@@ -134,13 +132,11 @@ def loadVocabulary (filePath):
     wordsByIndex = vocabulary [df.WordsByIndexesKey]
     indexesByWords = vocabulary [df.IndexesByWordsKey]
 
-def learnOnText(text):
-    print('------------ Gonna parse text list to tuples...')
-    tuples = allTuplesFromSentence(text)
-    print('------------ Tuple list filled. Size: ', len(tuples))
-    xTrain, yTrain = trainsFromTuples(tuples)
+def learn():
+    print('------------ Load trains')
+    xTrain, yTrain = readTrains()
     print('------------ X and Y trains prepared. Gonna start study...')
-    session, Weigths1, bias1, Weigths2, bias2 = learn(xTrain, yTrain)
+    session, Weigths1, bias1, Weigths2, bias2 = learnOnTrains(xTrain, yTrain)
     print('------------ Study completed. Gonna save result...')
     saveResult('result.json', session, Weigths1, bias1)
     # print(vectors[indexesByWords[hp.prepareWord('Word2vec')]])
@@ -157,11 +153,12 @@ def start():
     print('------------ Load vocabulary...')
     loadVocabulary('vocabulary.json')
     print('------------ Read all emails file...')
-    text = readAllEmailsFile()
-    learnOnText(text)
+    learn()
     # learnOnListOfTexts(['test text first', 'test text second'])
 
-def proccessTextAndSaveTuples():
+TrainsJsonFilepath = 'trains.json'
+
+def proccessTextAndSaveTrains():
     print('------------ Load vocabulary...')
     loadVocabulary('vocabulary.json')
     print('------------ Read all emails file...')
@@ -173,8 +170,15 @@ def proccessTextAndSaveTuples():
         'yIndeces': yTrain,
         'size': len(xTrain)
     }
-    json.dump(jsonMap, codecs.open('trains.json', 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=0)
+    json.dump(jsonMap, codecs.open(TrainsJsonFilepath, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=0)
 
+def readTrains():
+    jsonFile = open(TrainsJsonFilepath, 'r')
+    trainsJSON = json.load(jsonFile)
+    xIndeces = trainsJSON['xIndeces']
+    yIndces = trainsJSON ['yIndeces']
+    print('------------ Did read X and Y from file. Size:', len(xIndeces), 'Gonna parse to one hot...')
+    return xIndeces, yIndces
 
 def readAllEmailsFile():
     f = open('allEmails.txt', 'r')
@@ -190,4 +194,4 @@ def saveConcatenatedEmails():
     f.write(text)
     f.close()
 
-proccessTextAndSaveTuples()
+start()
