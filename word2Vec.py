@@ -1,11 +1,7 @@
-import datetime
-
 import numpy as np
 import tensorflow as tf
 import json, codecs
-
 import time
-
 import HelpFunctions as hp
 import DictionaryFiller as df
 import FileReader as fr
@@ -80,7 +76,7 @@ def createTFModel():
     return xTrainPlaceholder, yTrainPlaceholder, Weigths1, bias1, prediction, Weigths2, bias2
 
 def createSession():
-    session = tf.Session()
+    session = tf.Session(config= tf.ConfigProto(log_device_placement=True))
     initializer = tf.global_variables_initializer()
     session.run(initializer)
     return session
