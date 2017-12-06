@@ -107,6 +107,7 @@ def studyIteration(session, trainStep, lossFunction, xIndeces, yIndeces, xTrainP
     lastProgress = 0
     # session.partial_run_setup([trainStep, lossFunction])
     stepTimeSum = 0
+    lossList = []
     while index < trainSize:
         batchLength = min(index+StudyTrainPartSize, trainSize)
         batchX = xIndeces [index: batchLength]
@@ -130,11 +131,19 @@ def studyIteration(session, trainStep, lossFunction, xIndeces, yIndeces, xTrainP
         index += StudyTrainPartSize
         lastProgress = progress
         if numOfOperations % 50 == 0:
-            print("loss: ", session.run(lossFunction, feed_dict=feedDictionary))
+            loss = session.run(lossFunction, feed_dict=feedDictionary)
+            lossList.append(loss)
+            print("loss: ", loss)
         numOfOperations += 1
+    saveLoss(lossList)
 
 
-
+def saveLoss(lossList):
+    fileName = "LOSS_" + time.strftime("%d_%m_%Y_%H_%M_%S", time.localtime(time.time())) + '.json'
+    jsonMap = {
+        'loss': lossList,
+    }
+    json.dump(jsonMap, codecs.open(fileName, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=4)
 
 def saveResult(fileName, session, Weigths1, bias1):
     vectors = session.run(Weigths1 + bias1)
@@ -226,3 +235,4 @@ def saveConcatenatedEmails():
     f.close()
 
 start()
+# saveLoss([0.111])
