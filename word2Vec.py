@@ -1,6 +1,11 @@
+import datetime
+
 import numpy as np
 import tensorflow as tf
 import json, codecs
+
+import time
+
 import HelpFunctions as hp
 import DictionaryFiller as df
 import FileReader as fr
@@ -12,7 +17,7 @@ LearningRate = 0.1
 wordsByIndex = {}
 indexesByWords = {}
 vocabularySize = 0
-StudyTrainPartSize = 1000
+StudyTrainPartSize = 32
 
 def oneHotEncoding(unitIndex, wordCount):
     res = np.zeros(wordCount, dtype= np.uint64)
@@ -95,19 +100,39 @@ def learnOnTrains(xTrain, yTrain):
     return session, Weigths1, bias1, Weigths2, bias2
 
 def studyIteration(session, trainStep, lossFunction, xIndeces, yIndeces, xTrainPlaceholder, yTrainPlaceholder):
-    trainSize = len(xIndeces) / 9
+    trainSize = len(xIndeces) / 4
+    trainSize = int (trainSize)
     index = 0
+    numOfOperations = 1
+    lastProgress = 0
     # session.partial_run_setup([trainStep, lossFunction])
+    stepTimeSum = 0
     while index < trainSize:
-        batchX = xIndeces [index: min(index+StudyTrainPartSize, trainSize)]
-        batchY = yIndeces [index: min(index+StudyTrainPartSize, trainSize)]
+        batchLength = min(index+StudyTrainPartSize, trainSize)
+        batchX = xIndeces [index: batchLength]
+        batchY = yIndeces [index: batchLength]
         xTrain = [oneHotEncoding(x, vocabularySize) for x in batchX]
         yTrain = [oneHotEncoding(y, vocabularySize) for y in batchY]
         feedDictionary = {xTrainPlaceholder: xTrain, yTrainPlaceholder: yTrain}
-        print('               study proccess', index / trainSize * 100, '%  Current pair part start index:', index, 'of', trainSize)
+        progress = (index+batchLength) / trainSize * 100
+        startIteration =time.time()
         session.run(trainStep, feed_dict=feedDictionary)
+        endIteration = time.time()
+        stepProgress = progress - lastProgress
+        stepTime = endIteration - startIteration
+        stepTimeSum += stepTime
+        timeRemain = 100 / stepProgress * (stepTimeSum/numOfOperations)
+        finishTimestamp = time.time()+timeRemain
+        finishTime = time.strftime("%D %H:%M", time.localtime(finishTimestamp))
+        currentTime = time.strftime("%D %H:%M:%S", time.localtime(time.time()))
+        print('   ', currentTime, '    study proccess', progress, '%  Current pair part start index:', index, 'of', trainSize,
+              'Finish time:', finishTime)
         index += StudyTrainPartSize
-        # print("           loss: ", session.run(lossFunction, feed_dict=feedDictionary))
+        lastProgress = progress
+        if numOfOperations % 50 == 0:
+            print("loss: ", session.run(lossFunction, feed_dict=feedDictionary))
+        numOfOperations += 1
+
 
 
 
