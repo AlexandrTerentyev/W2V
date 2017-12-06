@@ -12,7 +12,7 @@ import FileReader as fr
 
 WindowSize = 2
 EmbeddingVectorSize = 5
-Iterations = 1
+Iterations = 5
 LearningRate = 0.1
 wordsByIndex = {}
 indexesByWords = {}
@@ -94,28 +94,29 @@ def learnOnTrains(xTrain, yTrain):
     xTrainPlaceholder, yTrainPlaceholder, Weigths1, bias1, prediction, Weigths2, bias2 = createTFModel()
     session = createSession()
     lossFunction, trainStep = createLossFunction(yTrainPlaceholder, prediction)
+    lossList = []
     for i in  range (Iterations):
         print('------- Start [ ', i, ' ] iteration.')
-        studyIteration(session, trainStep, lossFunction, xTrain, yTrain, xTrainPlaceholder, yTrainPlaceholder)
+        studyIteration(session, trainStep, lossFunction, lossList, xTrain, yTrain, xTrainPlaceholder, yTrainPlaceholder)
+    saveLoss(lossList)
     return session, Weigths1, bias1, Weigths2, bias2
 
-def studyIteration(session, trainStep, lossFunction, xIndeces, yIndeces, xTrainPlaceholder, yTrainPlaceholder):
-    trainSize = len(xIndeces) / 4
+def studyIteration(session, trainStep, lossFunction, lossList, xIndeces, yIndeces, xTrainPlaceholder, yTrainPlaceholder):
+    trainSize = 2000
     trainSize = int (trainSize)
     index = 0
     numOfOperations = 1
     lastProgress = 0
     # session.partial_run_setup([trainStep, lossFunction])
     stepTimeSum = 0
-    lossList = []
     while index < trainSize:
-        batchLength = min(index+StudyTrainPartSize, trainSize)
-        batchX = xIndeces [index: batchLength]
-        batchY = yIndeces [index: batchLength]
+        batchEnd = min(index+StudyTrainPartSize, trainSize)
+        batchX = xIndeces [index: batchEnd]
+        batchY = yIndeces [index: batchEnd]
         xTrain = [oneHotEncoding(x, vocabularySize) for x in batchX]
         yTrain = [oneHotEncoding(y, vocabularySize) for y in batchY]
         feedDictionary = {xTrainPlaceholder: xTrain, yTrainPlaceholder: yTrain}
-        progress = (index+batchLength) / trainSize * 100
+        progress = (batchEnd) / trainSize * 100
         startIteration =time.time()
         session.run(trainStep, feed_dict=feedDictionary)
         endIteration = time.time()
@@ -130,18 +131,17 @@ def studyIteration(session, trainStep, lossFunction, xIndeces, yIndeces, xTrainP
               'Finish time:', finishTime)
         index += StudyTrainPartSize
         lastProgress = progress
-        if numOfOperations % 50 == 0:
+        if numOfOperations % 10 == 0:
             loss = session.run(lossFunction, feed_dict=feedDictionary)
             lossList.append(loss)
             print("loss: ", loss)
         numOfOperations += 1
-    saveLoss(lossList)
 
 
 def saveLoss(lossList):
     fileName = "LOSS_" + time.strftime("%d_%m_%Y_%H_%M_%S", time.localtime(time.time())) + '.json'
     jsonMap = {
-        'loss': lossList,
+        'loss': [float(x) for x in lossList]
     }
     json.dump(jsonMap, codecs.open(fileName, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=4)
 
