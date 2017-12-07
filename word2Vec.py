@@ -16,11 +16,11 @@ vocabularySize = 0
 StudyTrainPartSize = 32
 PairsCount = 0
 trainedWords = set()
-LossComputingPeriod = 1
+LossComputingPeriod = 100
 
 def currentTrainSize():
-    # trainSize = len(PairsCount)
-    trainSize = 500
+    trainSize = PairsCount / 100
+    # trainSize = 500
     trainSize = int(trainSize)
     return trainSize
 
@@ -71,7 +71,7 @@ def addWordsToXandYTrains(x, y, xTrain, yTrain):
         xTrain.append(indexesByWords[x])
         yTrain.append(indexesByWords[y])
     except:
-        print('          Word', x, 'or', y, 'is not in vocabulary')
+        print('          Word |', x, '| or |', y, '| is not in vocabulary')
 
 def createTFModel():
     Weigths1 = tf.Variable(tf.random_normal([vocabularySize, EmbeddingVectorSize]))
@@ -245,4 +245,4 @@ def saveConcatenatedEmails():
     f.close()
 
 start()
-# saveLoss([0.111])
+# proccessTextAndSaveTrains()

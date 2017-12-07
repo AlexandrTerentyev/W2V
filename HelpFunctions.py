@@ -5,9 +5,10 @@ def prepareWord(word):
 def preparedWordArray(sentence):
     res = sentence
     res = res.lower()
-    res = res.replace('.', ' ')
-    res = res.replace(',', ' ')
     for i in range(0, 10):
         res = res.replace(str(i), '')
+    for c in [',', '.', ':', ';', '-', '_', '+', '%', '#', '@', '*', '!', '^',
+              '?', '>', '<', '=', '(', ')', '>', '[', ']', '{', '}', '|', '\\', '/', '~', '`', '\"', '\'']:
+        res = res.replace(c, ' ')
     res = res.split()
     return res
