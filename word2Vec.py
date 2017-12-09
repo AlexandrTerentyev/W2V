@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import tensorflow as tf
 import json, codecs
@@ -7,20 +8,21 @@ import DictionaryFiller as df
 import FileReader as fr
 
 WindowSize = 2
-EmbeddingVectorSize = 5
-Iterations = 100
+EmbeddingVectorSize = 8
+Iterations = 10000
 LearningRate = 0.1
 wordsByIndex = {}
 indexesByWords = {}
 vocabularySize = 0
-StudyTrainPartSize = 32
+BatchSize = 64
 PairsCount = 0
 trainedWords = set()
-LossComputingPeriod = 100
+LossComputingPeriod = 1
+NoiseNum = 1
 
 def currentTrainSize():
-    trainSize = PairsCount / 100
-    # trainSize = 500
+    trainSize = 256
+    # trainSize = PairsCount / 100
     trainSize = int(trainSize)
     return trainSize
 
@@ -74,15 +76,14 @@ def addWordsToXandYTrains(x, y, xTrain, yTrain):
         print('          Word |', x, '| or |', y, '| is not in vocabulary')
 
 def createTFModel():
-    Weigths1 = tf.Variable(tf.random_normal([vocabularySize, EmbeddingVectorSize]))
-    bias1 = tf.Variable(tf.random_normal([EmbeddingVectorSize]))
-    Weigths2 = tf.Variable(tf.random_normal([EmbeddingVectorSize, vocabularySize]))
-    xTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize))
-    yTrainPlaceholder = tf.placeholder(tf.float32, shape=(None, vocabularySize))
-    hiddenRepresentation = tf.add(tf.matmul(xTrainPlaceholder, Weigths1), bias1)
-    bias2 = tf.Variable(tf.random_normal([vocabularySize]))
-    prediction = tf.nn.softmax(tf.add(tf.matmul(hiddenRepresentation, Weigths2), bias2))
-    return xTrainPlaceholder, yTrainPlaceholder, Weigths1, bias1, prediction, Weigths2, bias2
+    Weigths = tf.Variable(
+        tf.truncated_normal([vocabularySize, EmbeddingVectorSize],
+                            stddev=1.0 / math.sqrt(EmbeddingVectorSize))
+    )
+    bias = tf.Variable(tf.zeros([vocabularySize]))
+    xTrainPlaceholder = tf.placeholder(tf.int32, shape=[BatchSize])
+    yTrainPlaceholder = tf.placeholder(tf.int32, shape=[BatchSize, 1])
+    return xTrainPlaceholder, yTrainPlaceholder, Weigths, bias
 
 def createSession():
     session = tf.Session(config= tf.ConfigProto(log_device_placement=True))
@@ -90,21 +91,36 @@ def createSession():
     session.run(initializer)
     return session
 
-def createLossFunction(yPlaceHolder, prediction):
-    lossFunction = tf.reduce_mean(-tf.reduce_sum(yPlaceHolder * tf.log(prediction), axis=[1]))
+def createLossFunction(xTrainPlaceholder, weights, bias, yTrainPlaceholder):
+    embeddings = tf.Variable(
+        tf.random_uniform([vocabularySize, EmbeddingVectorSize], -1.0, 1.0))
+    embed = tf.nn.embedding_lookup(embeddings, xTrainPlaceholder)
+    # W1 = tf.Variable(
+    #     tf.random_normal([BatchSize, EmbeddingVectorSize],
+    #                         stddev=1.0 / math.sqrt(EmbeddingVectorSize))
+    # )
+    # bias1 = tf.Variable(tf.random_normal([EmbeddingVectorSize]))
+    # hiddenRepresentation = tf.add(tf.matmul(xTrainPlaceholder, W1), bias1)
+    lossFunction = tf.reduce_mean(
+        tf.nn.nce_loss(weights=weights,
+                 biases=bias,
+                 labels=yTrainPlaceholder,
+                 inputs=embed,
+                 num_sampled=NoiseNum,
+                 num_classes=vocabularySize))
     trainStep = tf.train.GradientDescentOptimizer(LearningRate).minimize(lossFunction)
-    return lossFunction, trainStep
+    return lossFunction, trainStep, embeddings
 
 def learnOnTrains(xTrain, yTrain):
-    xTrainPlaceholder, yTrainPlaceholder, Weigths1, bias1, prediction, Weigths2, bias2 = createTFModel()
+    xTrainPlaceholder, yTrainPlaceholder, Weigths, bias = createTFModel()
+    lossFunction, trainStep, embeddings = createLossFunction(xTrainPlaceholder, Weigths, bias, yTrainPlaceholder)
     session = createSession()
-    lossFunction, trainStep = createLossFunction(yTrainPlaceholder, prediction)
     lossList = []
     for i in  range (Iterations):
         print('------- Start [ ', i, ' ] iteration.')
         studyIteration(i,session, trainStep, lossFunction, lossList, xTrain, yTrain, xTrainPlaceholder, yTrainPlaceholder)
     saveLoss(lossList)
-    return session, Weigths1, bias1, Weigths2, bias2
+    return session, Weigths, bias, embeddings
 
 def studyIteration(iteration, session, trainStep, lossFunction, lossList, xIndeces, yIndeces, xTrainPlaceholder, yTrainPlaceholder):
     trainSize = currentTrainSize()
@@ -114,14 +130,17 @@ def studyIteration(iteration, session, trainStep, lossFunction, lossList, xIndec
     # session.partial_run_setup([trainStep, lossFunction])
     stepTimeSum = 0
     while index < trainSize:
-        batchEnd = min(index+StudyTrainPartSize, trainSize)
-        batchX = xIndeces [index: batchEnd]
-        batchY = yIndeces [index: batchEnd]
-        xTrain = [oneHotEncoding(x, vocabularySize) for x in batchX]
-        yTrain = [oneHotEncoding(y, vocabularySize) for y in batchY]
+        batchEnd = min(index + BatchSize, trainSize)
+        batchX = np.ndarray(shape=(BatchSize), dtype=np.int32)
+        batchY = np.zeros([BatchSize, 1])
+        j = 0
+        for i in range(index, batchEnd):
+            batchY[j, 0] = yIndeces[i]
+            batchX[j] = xIndeces[i]
+            j += 1
         for x in batchX:
             trainedWords.add(x)
-        feedDictionary = {xTrainPlaceholder: xTrain, yTrainPlaceholder: yTrain}
+        feedDictionary = {xTrainPlaceholder: batchX, yTrainPlaceholder: batchY}
         progress = (batchEnd + iteration+trainSize) / trainSize * 100 / Iterations
         startIteration =time.time()
         session.run(trainStep, feed_dict=feedDictionary)
@@ -135,7 +154,7 @@ def studyIteration(iteration, session, trainStep, lossFunction, lossList, xIndec
         currentTime = time.strftime("%D %H:%M:%S", time.localtime(time.time()))
         print('   ', currentTime, '    study proccess', progress, '%  Current pair part start index:', index, 'of', trainSize,
               'Finish time:', finishTime)
-        index += StudyTrainPartSize
+        index += BatchSize
         lastProgress = progress
         if numOfOperations % LossComputingPeriod == 0:
             loss = session.run(lossFunction, feed_dict=feedDictionary)
@@ -151,8 +170,8 @@ def saveLoss(lossList):
     }
     json.dump(jsonMap, codecs.open(fileName, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=4)
 
-def saveResult(fileName, session, Weigths1, bias1):
-    vectors = session.run(Weigths1 + bias1)
+def saveResult(fileName, embeddings):
+    vectors = embeddings
     vocabulary = {}
     for i in range (vocabularySize):
         if not trainedWords.__contains__(i):
@@ -184,9 +203,9 @@ def learn():
     print('------------ Load trains')
     xTrain, yTrain = readTrains()
     print('------------ X and Y trains prepared. Gonna start study...')
-    session, Weigths1, bias1, Weigths2, bias2 = learnOnTrains(xTrain, yTrain)
+    session, Weigths1, bias1, embeddings = learnOnTrains(xTrain, yTrain)
     print('------------ Study completed. Gonna save result...')
-    saveResult('result.json', session, Weigths1, bias1)
+    saveResult('result.json', embeddings.eval(session))
     # print(vectors[indexesByWords[hp.prepareWord('Word2vec')]])
     # print(vectors[indexesByWords[hp.prepareWord('models')]])
 
