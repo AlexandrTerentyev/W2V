@@ -10,7 +10,7 @@ import FileReader as fr
 WindowSize = 2
 EmbeddingVectorSize = 8
 Iterations = 10000
-LearningRate = 0.1
+LearningRate = 1
 wordsByIndex = {}
 indexesByWords = {}
 vocabularySize = 0
