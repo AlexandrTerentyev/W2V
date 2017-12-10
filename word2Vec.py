@@ -9,20 +9,20 @@ import FileReader as fr
 
 WindowSize = 2
 EmbeddingVectorSize = 8
-Iterations = 10000
+Iterations = 800
 LearningRate = 1
 wordsByIndex = {}
 indexesByWords = {}
 vocabularySize = 0
-BatchSize = 64
+BatchSize = 256
 PairsCount = 0
 trainedWords = set()
-LossComputingPeriod = 1
-NoiseNum = 1
+LossComputingPeriod = 1000
+NoiseNum = 64
 
 def currentTrainSize():
-    trainSize = 256
-    # trainSize = PairsCount / 100
+    # trainSize = 512
+    trainSize = PairsCount / 4
     trainSize = int(trainSize)
     return trainSize
 
@@ -122,7 +122,10 @@ def learnOnTrains(xTrain, yTrain):
     saveLoss(lossList)
     return session, Weigths, bias, embeddings
 
+totalOperationCount = 0
+
 def studyIteration(iteration, session, trainStep, lossFunction, lossList, xIndeces, yIndeces, xTrainPlaceholder, yTrainPlaceholder):
+    global totalOperationCount
     trainSize = currentTrainSize()
     index = 0
     numOfOperations = 1
@@ -152,15 +155,19 @@ def studyIteration(iteration, session, trainStep, lossFunction, lossList, xIndec
         finishTimestamp = time.time()+timeRemain
         finishTime = time.strftime("%D %H:%M", time.localtime(finishTimestamp))
         currentTime = time.strftime("%D %H:%M:%S", time.localtime(time.time()))
-        print('   ', currentTime, '    study proccess', progress, '%  Current pair part start index:', index, 'of', trainSize,
-              'Finish time:', finishTime)
+        # print('   ', currentTime, '    study proccess', progress, '%  Current pair part start index:', index, 'of', trainSize,
+        #       'Finish time:', finishTime)
         index += BatchSize
         lastProgress = progress
-        if numOfOperations % LossComputingPeriod == 0:
+        if totalOperationCount % LossComputingPeriod == 0:
             loss = session.run(lossFunction, feed_dict=feedDictionary)
             lossList.append(loss)
+            print('   ', currentTime, '    study proccess', progress, '%  Current pair part start index:', index, 'of',
+                  trainSize,
+                  'Finish time:', finishTime)
             print("loss: ", loss)
         numOfOperations += 1
+        totalOperationCount += 1
 
 
 def saveLoss(lossList):

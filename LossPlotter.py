@@ -10,4 +10,4 @@ def plotLoss(filename):
     plt.plot (loss)
     plt.show()
 
-plotLoss('LOSS_10_12_2017_00_31_29.json')
+plotLoss('LOSS_10_12_2017_01_05_44.json')
