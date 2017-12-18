@@ -9,7 +9,7 @@ import FileReader as fr
 
 WindowSize = 2
 EmbeddingVectorSize = 8
-Iterations = 800
+Iterations = 7
 LearningRate = 1
 wordsByIndex = {}
 indexesByWords = {}
@@ -22,7 +22,7 @@ NoiseNum = 64
 
 def currentTrainSize():
     # trainSize = 512
-    trainSize = PairsCount / 4
+    trainSize = PairsCount
     trainSize = int(trainSize)
     return trainSize
 
@@ -134,7 +134,7 @@ def studyIteration(iteration, session, trainStep, lossFunction, lossList, xIndec
     stepTimeSum = 0
     while index < trainSize:
         batchEnd = min(index + BatchSize, trainSize)
-        batchX = np.ndarray(shape=(BatchSize), dtype=np.int32)
+        batchX = np.zeros(shape=(BatchSize), dtype=np.int32)
         batchY = np.zeros([BatchSize, 1])
         j = 0
         for i in range(index, batchEnd):
@@ -252,7 +252,7 @@ def readTrains():
     trainsJSON = json.load(jsonFile)
     xIndeces = trainsJSON['xIndeces']
     yIndces = trainsJSON ['yIndeces']
-    PairsCount = len(xIndeces)
+    PairsCount = len(yIndces)
     print('------------ Did read X and Y from file. Size:', len(xIndeces), 'Gonna parse to one hot...')
     return xIndeces, yIndces
 
