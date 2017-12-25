@@ -6,10 +6,11 @@ import time
 import HelpFunctions as hp
 import DictionaryFiller as df
 import FileReader as fr
+import xmlParser as xmlp
 
 WindowSize = 2
-EmbeddingVectorSize = 8
-Iterations = 7
+EmbeddingVectorSize = 256
+Iterations = 5
 LearningRate = 1
 wordsByIndex = {}
 indexesByWords = {}
@@ -220,7 +221,7 @@ def concatenateAllEmails():
     emails = []
     def onReadEmail(emailText):
         emails.append(emailText)
-    fr.enumerateDataSet(onReadEmail)
+    xmlp.parse(onReadEmail)
     return emails
 
 def start():
@@ -230,7 +231,8 @@ def start():
     learn()
     # learnOnListOfTexts(['test text first', 'test text second'])
 
-TrainsJsonFilepath = 'trains.json'
+TrainXJsonFilepath = 'trainX.json'
+TrainYJsonFilepath = 'trainY.json'
 
 def proccessTextAndSaveTrains():
     print('------------ Load vocabulary...')
@@ -239,36 +241,52 @@ def proccessTextAndSaveTrains():
     text = readAllEmailsFile()
     print('------------ Gonna parse text to trains...')
     xTrain, yTrain = xAndYTrainsFromSentence(text)
-    jsonMap = {
+    jsonMapX = {
         'xIndeces': xTrain,
-        'yIndeces': yTrain,
         'size': len(xTrain)
     }
-    json.dump(jsonMap, codecs.open(TrainsJsonFilepath, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=0)
+    jsonMapY = {
+        'yIndeces': yTrain,
+        'size': len(yTrain)
+    }
+    json.dump(jsonMapX, codecs.open(TrainXJsonFilepath, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=0)
+    json.dump(jsonMapY, codecs.open(TrainYJsonFilepath, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True,
+              indent=0)
 
 def readTrains():
     global PairsCount
-    jsonFile = open(TrainsJsonFilepath, 'r')
-    trainsJSON = json.load(jsonFile)
-    xIndeces = trainsJSON['xIndeces']
-    yIndces = trainsJSON ['yIndeces']
+    jsonXFile = open(TrainXJsonFilepath, 'r')
+    jsonYFile = open(TrainYJsonFilepath, 'r')
+    trainXJSON = json.load(jsonXFile)
+    trainYJSON = json.load(jsonYFile)
+    xIndeces = trainXJSON['xIndeces']
+    yIndces = trainYJSON ['yIndeces']
     PairsCount = len(yIndces)
     print('------------ Did read X and Y from file. Size:', len(xIndeces), 'Gonna parse to one hot...')
     return xIndeces, yIndces
 
 def readAllEmailsFile():
-    f = open('allEmails.txt', 'r')
+    f = open('allEmails.txt', 'r', encoding='utf-8')
     text = f.read()
     f.close()
     return text
 
 def saveConcatenatedEmails():
-    text = ''
-    for email in concatenateAllEmails():
-        text += email
-    f = open('allEmails.txt', 'w')
-    f.write(text)
+    f = open('allEmails.txt', 'a', encoding='utf-8')
+    emails = concatenateAllEmails()
+    emailsCount = len(emails)
+    i = 0
+    for email in emails:
+        print('Concatenate', i, 'of', emailsCount, 'emails  ', i/emailsCount*100, '%')
+        i += 1
+        # try:
+        #     f.write(email)
+        # except Exception:
+        #     print("Error while write")
+        text = email.replace('\xe6', ' ')
+        f.write(text)
     f.close()
 
 start()
 # proccessTextAndSaveTrains()
+# saveConcatenatedEmails()

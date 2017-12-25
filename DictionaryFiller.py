@@ -1,4 +1,5 @@
 import FileReader as fr
+import xmlParser as xmlp
 import HelpFunctions as hp
 import json, codecs
 
@@ -45,16 +46,17 @@ def filter():
         info = indexesByWords[word]
         wordCount = info['count']
         if wordCount > CountTreshold:
-            currentSortedWordsLen = len(SortedWords)
             newInfo = {'word': word, 'count': wordCount }
-            for i in range(0, currentSortedWordsLen):
-                if SortedWords[i]['count'] <= wordCount:
-                    SortedWords.insert(i, newInfo)
-                    break
-                elif i == currentSortedWordsLen - 1:
-                    SortedWords.append(newInfo)
-            if currentSortedWordsLen == 0:
-                SortedWords.append(newInfo)
+            # currentSortedWordsLen = len(SortedWords)
+            # for i in range(0, currentSortedWordsLen):
+            #     if SortedWords[i]['count'] <= wordCount:
+            #         SortedWords.insert(i, newInfo)
+            #         break
+            #     elif i == currentSortedWordsLen - 1:
+            #         SortedWords.append(newInfo)
+            # if currentSortedWordsLen == 0:
+            #     SortedWords.append(newInfo)
+            SortedWords.append(newInfo)
             filteredIndexesByWords[word] = index
             filteredWordsByIndex[index] = word
             index += 1
@@ -72,9 +74,9 @@ def saveSortedWords(filePath):
     json.dump(SortedWords, codecs.open(filePath, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=4)
 
 def fillAndSave(filePath):
-    fr.enumerateDataSet(proccessSentence)
+    xmlp.parse(proccessSentence)
     filter()
-    saveSortedWords('sortedWords.json')
+    # saveSortedWords('sortedWords.json')
     save(filePath)
 
 # fillAndSave('vocabulary.json')
